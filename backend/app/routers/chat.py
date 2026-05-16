@@ -1,10 +1,14 @@
 import anthropic
+from datetime import date
 from fastapi import APIRouter
 from pydantic import BaseModel
 from app.config import ANTHROPIC_API_KEY, MODEL, BUCKETS
 from app.services.message_service import fetch_window, persist_message
-from app.services.task_service import TaskCreate
+from app.services.task_service import TaskCreate, TaskUpdate
 from app.routers.tasks import create_task, get_tasks
+from app.routers.tasks import complete_task as svc_complete_task
+from app.routers.tasks import delete_task as svc_delete_task
+from app.routers.tasks import update_task as svc_update_task
 
 router = APIRouter(tags=["chat"])
 
@@ -12,9 +16,14 @@ anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 SYSTEM_PROMPT = """You are a personal AI assistant and planner. You help manage tasks and brainstorm ideas.
 
-You have access to two tools:
-- create_task: use this when the user mentions a task, deadline, reminder, or anything they need to do
-- get_tasks: use this when the user asks about their schedule, priorities, or existing tasks
+You have access to five tools:
+- create_task: use when the user mentions a task, deadline, reminder, or anything they need to do
+- get_tasks: use when the user asks about their schedule, priorities, or existing tasks
+- complete_task: use when the user says a task is done or wants to mark it complete
+- delete_task: use when the user wants to remove a task entirely
+- update_task: use when the user wants to reschedule, reprioritize, or edit a task
+
+When completing, deleting, or updating a task, first call get_tasks to find the correct task ID, then call the action tool with that ID.
 
 Priority scale (0-10):
 - 9-10: needs attention within hours, deadline today
@@ -61,20 +70,77 @@ TOOLS = [
             },
         },
     },
+    {
+        "name": "complete_task",
+        "description": "Mark a task as complete",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "string", "description": "Task ID"},
+            },
+            "required": ["id"],
+        },
+    },
+    {
+        "name": "delete_task",
+        "description": "Delete a task permanently",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "string", "description": "Task ID"},
+            },
+            "required": ["id"],
+        },
+    },
+    {
+        "name": "update_task",
+        "description": "Update fields of an existing task (reschedule, reprioritize, rename, change bucket)",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "string", "description": "Task ID"},
+                "task": {"type": "string", "description": "New task description"},
+                "date": {"type": "string", "description": "New due date (yyyy-mm-dd)"},
+                "priority": {"type": "number", "description": "New priority 0.0-10.0"},
+                "bucket": {"type": "string", "enum": BUCKETS, "description": "New bucket"},
+                "reminders": {"type": "string", "description": "New reminder (yyyy-mm-dd HH:MM)"},
+            },
+            "required": ["id"],
+        },
+    },
 ]
 
 
 def handle_tool_call(name: str, inputs: dict) -> str:
     if name == "create_task":
         task = create_task(TaskCreate(**inputs))
-        return f"Task created: {task.task} (priority {task.priority}, due {task.date})"
+        return f"Task created with task_id={task.id}: {task.task} (priority {task.priority}, due {task.date})"
     if name == "get_tasks":
         tasks = get_tasks(bucket=inputs.get("bucket"))
         if not tasks:
             return "No tasks found"
         return "\n".join(
-            f"- [{t.priority}] {t.task} (due {t.date}, bucket {t.bucket})" for t in tasks
+            f"- task_id={t.id} | priority={t.priority} | due={t.date} | bucket={t.bucket} | name={t.task}" for t in tasks
         )
+    if name == "complete_task":
+        task = svc_complete_task(inputs["id"])
+        if task is None:
+            return "Task not found"
+        return f"Task completed: {task.task}"
+    if name == "delete_task":
+        success = svc_delete_task(inputs["id"])
+        if not success:
+            return "Task not found"
+        return "Task deleted successfully"
+    if name == "update_task":
+        task_id = inputs.get("id")
+        if not task_id:
+            return "Missing task ID"
+        update_fields = {k: v for k, v in inputs.items() if k != "id"}
+        task = svc_update_task(task_id, TaskUpdate.model_validate(update_fields))
+        if task is None:
+            return "Task not found"
+        return f"Task updated: {task.task} (priority {task.priority}, due {task.date})"
     return f"Unknown tool: {name}"
 
 
@@ -97,7 +163,10 @@ def chat(req: ChatRequest):
         api_response = anthropic_client.messages.create(
             model=MODEL,
             max_tokens=1024,
-            system=[{"type": "text", "text": SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
+            system=[
+                {"type": "text", "text": SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}},
+                {"type": "text", "text": f"Today's date is {date.today().isoformat()}."},
+            ],
             tools=TOOLS,
             messages=messages,
         )

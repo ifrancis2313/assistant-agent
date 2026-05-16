@@ -1,12 +1,12 @@
 from pydantic import BaseModel, field_validator
-from datetime import date, datetime
+from datetime import date as DateType, datetime
 from typing import Optional
 from app.config import BUCKETS, PRIORITY_MIN, PRIORITY_MAX
 
 
 class TaskCreate(BaseModel):
     task: str
-    date: date
+    date: DateType
     priority: float
     bucket: str
     reminders: Optional[datetime] = None
@@ -28,7 +28,7 @@ class TaskCreate(BaseModel):
 
 class TaskUpdate(BaseModel):
     task: Optional[str] = None
-    date: Optional[date] = None
+    date: Optional[DateType] = None
     priority: Optional[float] = None
     bucket: Optional[str] = None
     reminders: Optional[datetime] = None
@@ -52,7 +52,7 @@ class Task(BaseModel):
     id: str
     user_id: Optional[str] = None
     task: str
-    date: date
+    date: DateType
     priority: float
     bucket: str
     reminders: Optional[datetime] = None
