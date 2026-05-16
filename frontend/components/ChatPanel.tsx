@@ -88,7 +88,7 @@ export default function ChatPanel({ onAgentResponse }: Props) {
             onKeyDown={e => e.key === 'Enter' && handleSubmit()}
             placeholder="Add a task or ask anything…"
             disabled={loading}
-            className="flex-1 rounded-full border border-zinc-200 bg-zinc-50 px-4 py-2 text-sm outline-none focus:border-zinc-400 focus:bg-white transition-colors disabled:opacity-50"
+            className="flex-1 rounded-full border border-zinc-200 bg-zinc-50 px-4 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-zinc-400 focus:bg-white transition-colors disabled:opacity-50"
           />
           <button
             onClick={handleSubmit}
