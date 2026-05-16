@@ -26,7 +26,10 @@ export async function sendMessage(message: string): Promise<string> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ message }),
   })
-  if (!res.ok) throw new Error('Failed to send message')
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || 'Something went wrong. Please try again.')
+  }
   const data = await res.json()
   return data.response
 }

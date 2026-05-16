@@ -59,6 +59,6 @@ Run `backend/supabase_migration.sql` in the Supabase SQL editor to create the `t
 
 ## Deployment
 
-- **Frontend**: Import repo in Vercel, set root directory to `frontend`
-- **Backend**: Create Railway service from repo, set root directory to `backend`, start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-- **Database**: Supabase free tier
+- **Frontend**: Import repo in Vercel, set root directory to `frontend`. Add env var: `NEXT_PUBLIC_API_URL=https://your-railway-app.up.railway.app`
+- **Backend**: Create Railway service from repo, set root directory to `backend`. Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Add env vars from `backend/.env.example`.
+- **Database**: Supabase free tier. Run `backend/supabase_migration.sql` in the SQL editor.
