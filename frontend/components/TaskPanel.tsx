@@ -6,7 +6,11 @@ import { getTasks, completeTask, deleteTask } from '@/lib/api'
 import ChipNav from './ChipNav'
 import TaskCard from './TaskCard'
 
-export default function TaskPanel() {
+interface Props {
+  refreshKey?: number
+}
+
+export default function TaskPanel({ refreshKey = 0 }: Props) {
   const [activeView, setActiveView] = useState<View>('All')
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
@@ -23,7 +27,7 @@ export default function TaskPanel() {
     }
   }, [activeView])
 
-  useEffect(() => { fetchTasks() }, [fetchTasks])
+  useEffect(() => { fetchTasks() }, [fetchTasks, refreshKey])
 
   const handleComplete = async (id: string) => {
     setTasks(prev => prev.filter(t => t.id !== id))
