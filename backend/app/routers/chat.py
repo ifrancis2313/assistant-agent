@@ -42,7 +42,12 @@ Buckets:
 
 For dates use yyyy-mm-dd format. For reminders use yyyy-mm-dd HH:MM.
 When no deadline is given, make a reasonable estimate based on context.
-For general questions or brainstorming, respond conversationally without using tools."""
+
+IMPORTANT — Auto-assignment rules:
+- ALWAYS assign bucket and priority yourself. Never ask the user to confirm or clarify a bucket or priority.
+- Infer the bucket from context: mentions of investment club/SIC → SIC, brother connections/BC → BC, homework/class/exam → School, futures/options club → Options, investment lab/silk → Lab, everything else → Personal.
+- If uncertain between two buckets, pick the most likely one and proceed. The user will correct if needed.
+- For general questions or brainstorming, respond conversationally without using tools."""
 
 TOOLS = [
     {
