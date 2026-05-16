@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+supabase
+anthropic
+python-dotenv
+pytest
+pytest-asyncio
+httpx
