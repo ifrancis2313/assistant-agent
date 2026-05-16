@@ -1,5 +1,8 @@
 -- Run this in the Supabase SQL editor for your project
 
+-- Phase 1: RLS disabled (single-user, no auth yet)
+-- Re-enable with proper policies when auth is added in Phase 2
+
 create table tasks (
     id uuid primary key default gen_random_uuid(),
     user_id uuid,
@@ -12,6 +15,8 @@ create table tasks (
     created_at timestamptz not null default now()
 );
 
+alter table tasks disable row level security;
+
 create table messages (
     id uuid primary key default gen_random_uuid(),
     user_id uuid,
@@ -19,3 +24,5 @@ create table messages (
     content text not null,
     created_at timestamptz not null default now()
 );
+
+alter table messages disable row level security;
