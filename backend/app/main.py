@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import tasks
+from app.routers import tasks, chat
 
 app = FastAPI(title="Assistant Agent API")
 
@@ -12,6 +12,7 @@ app.add_middleware(
 )
 
 app.include_router(tasks.router)
+app.include_router(chat.router)
 
 
 @app.get("/health")
