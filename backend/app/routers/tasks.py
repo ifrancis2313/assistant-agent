@@ -41,6 +41,16 @@ def delete_task(id: str) -> bool:
     return len(row.data) > 0
 
 
+def task_exists_for_external_id(source: str, external_id: str) -> bool:
+    row = get_client().table("tasks") \
+        .select("id") \
+        .eq("source", source) \
+        .eq("external_id", external_id) \
+        .limit(1) \
+        .execute()
+    return len(row.data) > 0
+
+
 @router.post("", status_code=201, response_model=Task)
 def route_create_task(data: TaskCreate):
     return create_task(data)

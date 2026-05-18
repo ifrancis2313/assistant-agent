@@ -17,9 +17,12 @@ MOCK_TASK = Task(
 
 # --- Tool registry completeness ---
 
-def test_all_five_tools_defined():
+def test_all_tools_defined():
     names = {t["name"] for t in TOOLS}
-    assert names == {"create_task", "get_tasks", "update_task", "complete_task", "delete_task"}
+    assert names == {
+        "create_task", "get_tasks", "update_task", "complete_task", "delete_task",
+        "sync_google_calendar", "sync_canvas", "set_canvas_token",
+    }
 
 
 def test_each_tool_has_required_schema_fields():

@@ -10,6 +10,8 @@ class TaskCreate(BaseModel):
     priority: float
     bucket: str
     reminders: Optional[datetime] = None
+    source: str = "manual"
+    external_id: Optional[str] = None
 
     @field_validator("priority")
     @classmethod
@@ -58,3 +60,5 @@ class Task(BaseModel):
     reminders: Optional[datetime] = None
     completed: bool
     created_at: datetime
+    source: str = "manual"
+    external_id: Optional[str] = None

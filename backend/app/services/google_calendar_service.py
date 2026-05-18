@@ -83,7 +83,9 @@ def get_credentials(account_email: str) -> Optional[Credentials]:
 
     expiry = None
     if token_row.get("token_expiry"):
-        expiry = datetime.fromisoformat(token_row["token_expiry"].replace("Z", "+00:00"))
+        expiry = datetime.fromisoformat(
+            token_row["token_expiry"].replace("Z", "+00:00")
+        ).replace(tzinfo=None)  # Google auth library expects naive UTC
 
     creds = Credentials(
         token=token_row["access_token"],
@@ -107,6 +109,32 @@ def get_credentials(account_email: str) -> Optional[Credentials]:
         )
 
     return creds
+
+
+def fetch_events(account_email: str, days_ahead: int = 14) -> list[dict]:
+    creds = get_credentials(account_email)
+    if not creds:
+        return []
+
+    service = build("calendar", "v3", credentials=creds)
+    now = datetime.now(timezone.utc)
+    time_max = now + timedelta(days=days_ahead)
+
+    result = service.events().list(
+        calendarId="primary",
+        timeMin=now.isoformat(),
+        timeMax=time_max.isoformat(),
+        singleEvents=True,
+        orderBy="startTime",
+        maxResults=100,
+    ).execute()
+
+    events = []
+    for item in result.get("items", []):
+        if "dateTime" not in item.get("start", {}):
+            continue  # skip all-day events
+        events.append(item)
+    return events
 
 
 def is_authenticated() -> bool:

@@ -5,10 +5,13 @@ from pydantic import BaseModel
 from app.config import ANTHROPIC_API_KEY, MODEL, BUCKETS
 from app.services.message_service import fetch_window, persist_message
 from app.services.task_service import TaskCreate, TaskUpdate
-from app.routers.tasks import create_task, get_tasks
+from app.routers.tasks import create_task, get_tasks, task_exists_for_external_id
 from app.routers.tasks import complete_task as svc_complete_task
 from app.routers.tasks import delete_task as svc_delete_task
 from app.routers.tasks import update_task as svc_update_task
+from app.services.google_calendar_service import fetch_events, get_all_tokens as gcal_get_all_tokens
+from app.services.canvas_service import fetch_unsubmitted_assignments
+from app.services.token_service import upsert_token
 
 router = APIRouter(tags=["chat"])
 
@@ -16,12 +19,15 @@ anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 SYSTEM_PROMPT = """You are a personal AI assistant and planner. You help manage tasks and brainstorm ideas.
 
-You have access to five tools:
+You have access to eight tools:
 - create_task: use when the user mentions a task, deadline, reminder, or anything they need to do
 - get_tasks: use when the user asks about their schedule, priorities, or existing tasks
 - complete_task: use when the user says a task is done or wants to mark it complete
 - delete_task: use when the user wants to remove a task entirely
 - update_task: use when the user wants to reschedule, reprioritize, or edit a task
+- sync_google_calendar: use when the user says "sync my calendar", "what's on my calendar", or wants to import calendar events. Default window is 14 days unless the user specifies otherwise.
+- sync_canvas: use when the user says "sync my Canvas", "what assignments do I have", or wants to import Canvas assignments.
+- set_canvas_token: use when the user provides a Canvas API token to connect their Canvas account.
 
 When completing, deleting, or updating a task, first call get_tasks to find the correct task ID, then call the action tool with that ID.
 
@@ -113,6 +119,32 @@ TOOLS = [
             "required": ["id"],
         },
     },
+    {
+        "name": "sync_google_calendar",
+        "description": "Import upcoming Google Calendar events as tasks from all connected accounts",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "days_ahead": {"type": "integer", "description": "Days ahead to sync (default 14)"},
+            },
+        },
+    },
+    {
+        "name": "sync_canvas",
+        "description": "Import unsubmitted Canvas assignments as tasks",
+        "input_schema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "set_canvas_token",
+        "description": "Store a Canvas API token to connect Canvas",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "token": {"type": "string", "description": "Canvas personal access token"},
+            },
+            "required": ["token"],
+        },
+    },
 ]
 
 
@@ -146,7 +178,77 @@ def handle_tool_call(name: str, inputs: dict) -> str:
         if task is None:
             return "Task not found"
         return f"Task updated: {task.task} (priority {task.priority}, due {task.date})"
+    if name == "sync_google_calendar":
+        return _handle_sync_google_calendar(inputs.get("days_ahead", 14))
+    if name == "sync_canvas":
+        return _handle_sync_canvas()
+    if name == "set_canvas_token":
+        upsert_token("canvas", "canvas", inputs["token"])
+        return "Canvas token saved. You can now sync your Canvas assignments."
     return f"Unknown tool: {name}"
+
+
+def _handle_sync_google_calendar(days_ahead: int) -> str:
+    from app.services.token_service import get_all_tokens
+    tokens = get_all_tokens("google")
+    if not tokens:
+        return "No Google accounts connected. Visit /auth/google to connect your calendar."
+
+    imported, skipped = 0, 0
+    for token_row in tokens:
+        account_email = token_row["account_email"]
+        events = fetch_events(account_email, days_ahead=days_ahead)
+        for event in events:
+            external_id = event["id"]
+            if task_exists_for_external_id("google_calendar", external_id):
+                skipped += 1
+                continue
+            summary = event.get("summary", "Untitled event")
+            start_dt = event["start"]["dateTime"]
+            event_date = start_dt[:10]
+            task = create_task(TaskCreate(
+                task=summary,
+                date=event_date,
+                priority=5.0,
+                bucket="Personal",
+                source="google_calendar",
+                external_id=external_id,
+            ))
+            imported += 1
+
+    if imported == 0:
+        return f"No new events found in the next {days_ahead} days across {len(tokens)} account(s). {skipped} already imported."
+    return f"Imported {imported} new event(s) from {len(tokens)} Google account(s). {skipped} already existed."
+
+
+def _handle_sync_canvas() -> str:
+    assignments = fetch_unsubmitted_assignments()
+    if assignments is None:
+        return "Canvas is not connected. Provide your Canvas token with: set my Canvas token to <token>"
+    if not assignments:
+        return "No unsubmitted Canvas assignments found."
+
+    imported, skipped = 0, 0
+    for assignment in assignments:
+        external_id = str(assignment["id"])
+        if task_exists_for_external_id("canvas", external_id):
+            skipped += 1
+            continue
+        due_date = assignment["due_at"][:10] if assignment.get("due_at") else str(date.today())
+        task_name = f"{assignment['name']} — {assignment['course_name']}"
+        create_task(TaskCreate(
+            task=task_name,
+            date=due_date,
+            priority=5.0,
+            bucket="School",
+            source="canvas",
+            external_id=external_id,
+        ))
+        imported += 1
+
+    if imported == 0:
+        return f"No new assignments found. {skipped} already imported."
+    return f"Imported {imported} Canvas assignment(s). {skipped} already existed."
 
 
 class ChatRequest(BaseModel):
