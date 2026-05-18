@@ -2,7 +2,7 @@ import logging
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from app.routers import tasks, chat
+from app.routers import tasks, chat, auth
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -18,6 +18,7 @@ app.add_middleware(
 
 app.include_router(tasks.router)
 app.include_router(chat.router)
+app.include_router(auth.router)
 
 
 @app.exception_handler(Exception)
