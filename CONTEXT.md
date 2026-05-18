@@ -42,5 +42,14 @@ On-demand import of Google Calendar events as Tasks across ALL connected Google 
 ## Canvas Sync
 On-demand import of Canvas LMS assignments as Tasks. Uses a personal Canvas API token (no OAuth). Institution URL: `https://usfca.instructure.com`. Imports unsubmitted assignments only (submitted = done, no value in the planner). Fields imported: assignment name, due date, course name. Bucket always `School`. Priority auto-assigned based on due date proximity. Deduplication via `source = "canvas"` + `external_id = <canvas_assignment_id>`.
 
+## Gmail Sync
+On-demand import of actionable emails as Tasks. The agent scans specified Gmail inboxes (up to 25 emails per account, most recent first), extracts action items and deadlines, and creates tasks automatically. Auto-assignment rules apply. Deduplication via `source = "gmail"` + `external_id = <gmail_message_id>`. All connected Google accounts are authorized for Gmail access (same OAuth flow as Calendar, with `gmail.readonly` scope added). Sync accepts optional Sync Parameters; when omitted, stored Defaults are used. The agent receives each email as: sender, subject, and a short snippet, then decides which are actionable.
+
+## Sync Parameters
+The optional arguments accepted by any sync tool: `accounts` (list of email addresses to include) and `days` (how far back to look for email, or how far forward for calendar). When not provided, the tool falls back to the user's stored Defaults, or if no Defaults are set, to the hardcoded fallback: all connected accounts, 7 days back for Gmail, 14 days forward for Calendar.
+
+## Defaults
+Stored user preferences for sync tools. Lives in a `user_defaults` Supabase table with one row per sync type (`gmail`, `google_calendar`, `canvas`), columns: `sync_type`, `accounts` (JSON array of email strings), `days` (integer). Set via chat ("make ifrancis2313 and ifrancis@dons my default email accounts, 7 days"). Override on the fly without changing the stored Default ("sync email from my USF account for the last 30 days"). A `set_defaults` agent tool handles updates.
+
 ## Conversation Window
 The last 20 messages sent to the agent as context on each turn. Full history is persisted in Supabase but only the window is sent to the model to cap token cost.
