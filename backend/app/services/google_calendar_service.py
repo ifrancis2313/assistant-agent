@@ -111,6 +111,33 @@ def get_credentials(account_email: str) -> Optional[Credentials]:
     return creds
 
 
+def create_reminder_event(task_name: str, reminder_datetime: datetime) -> None:
+    tokens = get_all_tokens("google")
+    if not tokens:
+        return
+
+    account_email = tokens[0]["account_email"]
+    creds = get_credentials(account_email)
+    if not creds:
+        return
+
+    service = build("calendar", "v3", credentials=creds)
+    end_dt = reminder_datetime + timedelta(minutes=15)
+
+    service.events().insert(
+        calendarId="primary",
+        body={
+            "summary": f"Reminder: {task_name}",
+            "start": {"dateTime": reminder_datetime.isoformat(), "timeZone": "UTC"},
+            "end": {"dateTime": end_dt.isoformat(), "timeZone": "UTC"},
+            "reminders": {
+                "useDefault": False,
+                "overrides": [{"method": "popup", "minutes": 0}],
+            },
+        },
+    ).execute()
+
+
 def fetch_events(account_email: str, days_ahead: int = 14) -> list[dict]:
     creds = get_credentials(account_email)
     if not creds:

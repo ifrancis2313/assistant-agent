@@ -104,3 +104,43 @@ def test_delete_task_returns_404_for_unknown_id():
     with patch("app.routers.tasks.delete_task", return_value=False):
         response = client.delete("/tasks/bad-id")
     assert response.status_code == 404
+
+
+def test_create_task_triggers_reminder_event_when_reminders_set():
+    task_with_reminder = MOCK_TASK.model_copy(update={"reminders": datetime(2026, 5, 20, 13, 0, 0)})
+    with patch("app.routers.tasks.create_task", return_value=task_with_reminder), \
+         patch("app.routers.tasks.create_reminder_event") as mock_reminder:
+        client.post("/tasks", json={
+            "task": "Submit SIC report",
+            "date": "2026-05-20",
+            "priority": 7.5,
+            "bucket": "SIC",
+            "reminders": "2026-05-20T13:00:00",
+        })
+    mock_reminder.assert_called_once()
+
+
+def test_create_task_does_not_trigger_reminder_when_no_reminders():
+    with patch("app.routers.tasks.create_task", return_value=MOCK_TASK), \
+         patch("app.routers.tasks.create_reminder_event") as mock_reminder:
+        client.post("/tasks", json={
+            "task": "Submit SIC report",
+            "date": "2026-05-20",
+            "priority": 7.5,
+            "bucket": "SIC",
+        })
+    mock_reminder.assert_not_called()
+
+
+def test_create_task_succeeds_even_if_reminder_event_fails():
+    task_with_reminder = MOCK_TASK.model_copy(update={"reminders": datetime(2026, 5, 20, 13, 0, 0)})
+    with patch("app.routers.tasks.create_task", return_value=task_with_reminder), \
+         patch("app.routers.tasks.create_reminder_event", side_effect=Exception("Calendar API down")):
+        response = client.post("/tasks", json={
+            "task": "Submit SIC report",
+            "date": "2026-05-20",
+            "priority": 7.5,
+            "bucket": "SIC",
+            "reminders": "2026-05-20T13:00:00",
+        })
+    assert response.status_code == 201

@@ -1,7 +1,11 @@
+import logging
 from fastapi import APIRouter, HTTPException, Query, Response
 from typing import Optional
 from app.services.task_service import TaskCreate, TaskUpdate, Task
 from app.services.supabase_client import get_client
+from app.services.google_calendar_service import create_reminder_event
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -53,7 +57,13 @@ def task_exists_for_external_id(source: str, external_id: str) -> bool:
 
 @router.post("", status_code=201, response_model=Task)
 def route_create_task(data: TaskCreate):
-    return create_task(data)
+    task = create_task(data)
+    if task.reminders:
+        try:
+            create_reminder_event(task.task, task.reminders)
+        except Exception as e:
+            logger.error(f"Failed to create reminder event for task {task.id}: {e}")
+    return task
 
 
 @router.get("", response_model=list[Task])

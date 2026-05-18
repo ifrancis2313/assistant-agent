@@ -55,6 +55,39 @@ def test_fetch_events_returns_empty_list_when_no_credentials():
     assert result == []
 
 
+def test_create_reminder_event_calls_calendar_api_with_correct_payload():
+    from app.services.google_calendar_service import create_reminder_event
+
+    mock_creds = MagicMock()
+    mock_service = MagicMock()
+    mock_service.events.return_value.insert.return_value.execute.return_value = {"id": "evt_new"}
+
+    reminder_dt = datetime(2026, 5, 20, 14, 0, 0, tzinfo=timezone.utc)
+
+    with patch("app.services.google_calendar_service.get_credentials", return_value=mock_creds), \
+         patch("app.services.google_calendar_service.build", return_value=mock_service), \
+         patch("app.services.google_calendar_service.get_all_tokens", return_value=[{"account_email": "test@gmail.com"}]):
+        create_reminder_event("Submit SIC report", reminder_dt)
+
+    insert_call = mock_service.events.return_value.insert.call_args
+    body = insert_call.kwargs["body"]
+    assert "Submit SIC report" in body["summary"]
+    assert body["reminders"]["overrides"][0]["method"] == "popup"
+    assert body["reminders"]["overrides"][0]["minutes"] == 0
+
+
+def test_create_reminder_event_does_nothing_when_no_google_accounts():
+    from app.services.google_calendar_service import create_reminder_event
+
+    reminder_dt = datetime(2026, 5, 20, 14, 0, 0, tzinfo=timezone.utc)
+
+    with patch("app.services.google_calendar_service.get_all_tokens", return_value=[]) as mock_tokens, \
+         patch("app.services.google_calendar_service.build") as mock_build:
+        create_reminder_event("Some task", reminder_dt)
+
+    mock_build.assert_not_called()
+
+
 def test_fetch_events_returns_empty_when_calendar_has_no_items():
     from app.services.google_calendar_service import fetch_events
 
