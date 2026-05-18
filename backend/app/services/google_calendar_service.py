@@ -13,6 +13,7 @@ from app.services.token_service import get_token, get_all_tokens, upsert_token
 SCOPES = [
     "https://www.googleapis.com/auth/calendar.readonly",
     "https://www.googleapis.com/auth/calendar.events",
+    "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/userinfo.email",
     "openid",
 ]
