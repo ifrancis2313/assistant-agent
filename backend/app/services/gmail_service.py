@@ -10,7 +10,7 @@ def fetch_emails(account_email: str, days: int = 7, limit: int = 25) -> list[dic
 
     service = build("gmail", "v1", credentials=creds)
     after = int((datetime.now(timezone.utc) - timedelta(days=days)).timestamp())
-    query = f"after:{after}"
+    query = f"after:{after} (category:primary OR subject:meeting)"
 
     response = service.users().messages().list(
         userId="me",
