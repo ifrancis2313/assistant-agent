@@ -81,7 +81,7 @@ def test_fetch_emails_respects_limit():
     assert len(result) <= 25
 
 
-def test_fetch_emails_passes_unread_filter_to_api():
+def test_fetch_emails_passes_date_filter_to_api():
     from app.services.gmail_service import fetch_emails
 
     mock_creds = MagicMock()
@@ -94,4 +94,4 @@ def test_fetch_emails_passes_unread_filter_to_api():
 
     list_call = mock_service.users.return_value.messages.return_value.list.call_args
     query = list_call.kwargs.get("q", "")
-    assert "is:unread" in query
+    assert "after:" in query
