@@ -329,14 +329,14 @@ def _handle_sync_gmail(accounts: list[str], days: int) -> str:
                 all_emails.append(email)
 
     if not all_emails:
-        return f"No new unread emails in the last {days} day(s) across {len(accounts)} account(s)."
+        return f"No new emails found in the last {days} day(s) across {len(accounts)} account(s)."
 
     formatted = "\n".join(
         f"- email_id={e['id']} | from={e['from']} | subject={e['subject']} | snippet={e['snippet']}"
         for e in all_emails
     )
     return (
-        f"Found {len(all_emails)} unread email(s) from the last {days} day(s). "
+        f"Found {len(all_emails)} email(s) from the last {days} day(s). "
         f"Review each and call create_task for any that require action "
         f"(use source='gmail' and external_id=<email_id>):\n{formatted}"
     )
