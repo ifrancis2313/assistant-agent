@@ -22,6 +22,7 @@ def test_all_tools_defined():
     assert names == {
         "create_task", "get_tasks", "update_task", "complete_task", "delete_task",
         "sync_google_calendar", "sync_canvas", "set_canvas_token",
+        "sync_gmail", "set_defaults", "list_connected_accounts",
     }
 
 
